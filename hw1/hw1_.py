@@ -39,9 +39,11 @@ class Data:															#all the data from Internet database with diff categor
 		self.testing_data1 = self.data3.data 										# get the data
 		self.testing_target1 = np.array([int(i>3) for i in self.data3.target]) 		# get the target--> binary class, so change 8 sub class to 2 class
 
+class model:
+	pass
 
 
-def plot_histogram(data): 														#part A
+def plot_histogram(data): 															#part A
 	dictt = {}
 	for i in data.categories1:
 		training_data = fetch_20newsgroups(data_home = '/Volumes/Transcend/219/hw1/data',subset='train', categories=[i])
@@ -49,22 +51,19 @@ def plot_histogram(data): 														#part A
 	plt.bar([i for i in range(1,9)], list(dictt.values()))
 	plt.show()
 
-def preprocess(dclass,data,min_df=5,ICF=False):									#preprocess(re + TF-IDF)
+def preprocess(dclass,data,vectorizer,tfidf_transformer,train=True,ICF=False):		#preprocess(re + TF-IDF)
 	data_re = doc_re(data)
-	stop_words = text.ENGLISH_STOP_WORDS
-	data_tfidf = tfidf(dclass,min_df,stop_words,data_re,ICF)								#default ICF=False
+	data_tfidf = tfidf(dclass,data_re,vectorizer,tfidf_transformer,train,ICF)		#default ICF=False
 	return data_tfidf
 
-def doc_re(data):																#remove puntuation
+def doc_re(data):																	#remove puntuation
 	regex = re.compile('[%s]' % re.escape(string.punctuation))
 	filter_punc = [regex.sub('', text) for text in data]
 	le = LemmaTokenizer()
 	return [' '.join(le.__call__(text)) for text in filter_punc]
 
-def tfidf(dclass,min_df,stop_words,doc_re,ICF=False):							#TF-IDF or TF-ICF using "ICF" parameter, default ICF is false
-	vectorizer = CountVectorizer(min_df=min_df,stop_words=stop_words)
-	tfidf_transformer = TfidfTransformer()
-	X = vectorizer.fit_transform(doc_re)
+def tfidf(dclass,doc_re,vectorizer,tfidf_transformer,train,ICF):					#TF-IDF or TF-ICF using "ICF" parameter, default ICF is false
+	X = vectorizer.fit_transform(doc_re) if train else vectorizer.transform(doc_re)
 	shape = X.toarray().shape
 	#print (shape)
 	if ICF:
@@ -76,7 +75,7 @@ def tfidf(dclass,min_df,stop_words,doc_re,ICF=False):							#TF-IDF or TF-ICF us
 			A[index] += count
 		X=A
 		del A
-	return tfidf_transformer.fit_transform(X)
+	return tfidf_transformer.fit_transform(X) if train else tfidf_transformer.transform(X)
 
 def find_10most(dclass,doc):													#find most significant terms
 	doc = doc.toarray()
@@ -158,31 +157,40 @@ def main():
 	categories2 = ['comp.sys.ibm.pc.hardware', 'comp.sys.mac.hardware', 'misc.forsale', 'soc.religion.christian']
 	cat_all = ['comp.sys.ibm.pc.hardware', 'comp.sys.mac.hardware', 'misc.forsale', 'soc.religion.christian', 'alt.atheism', 'comp.graphics', 'comp.os.ms-windows.misc', 'comp.windows.x', 'rec.autos', 'rec.motorcycles', 'rec.sport.baseball', 'rec.sport.hockey', 'sci.crypt', 'sci.electronics', 'sci.med', 'sci.space', 'talk.politics.guns', 'talk.politics.mideast', 'talk.politics.misc', 'talk.religion.misc']
 	dclass = Data(categories1,cat_all)
+	stop_words = text.ENGLISH_STOP_WORDS
 
 	print ('-----Part A-----')
-	#plot_histogram(dclass)
+	plot_histogram(dclass)
 	print ('-----Part B-----')
 
-	tfidf2 = preprocess(dclass,dclass.training_data1,min_df=2)
-	tfidf5 = preprocess(dclass,dclass.training_data1)					#default min_df=5
+	vectorizer2 = CountVectorizer(min_df=2,stop_words=stop_words)
+	tfidf_transformer2 = TfidfTransformer()
+
+	vectorizer5 = CountVectorizer(min_df=5,stop_words=stop_words)
+	tfidf_transformer5 = TfidfTransformer()
+	tfidf2 = preprocess(dclass,dclass.training_data1,vectorizer2,tfidf_transformer2,train=True)
+	tfidf5 = preprocess(dclass,dclass.training_data1,vectorizer5,tfidf_transformer5,train=True)						#default min_df=5
 
 	print ('# of terms with min_df = 2:',tfidf2[0,:].toarray().shape[1],'\n# of terms with min_df = 5:',tfidf5[0,:].toarray().shape[1])
 	
 	print ('-----Part C-----')
-	tfidf_c = preprocess(dclass,dclass.training_data2,ICF=True)					#default min_df=5, use TF-ICF
+	vectorizerc = CountVectorizer(min_df=5,stop_words=stop_words)
+	tfidf_transformerc = TfidfTransformer()
+
+	tfidf_c = preprocess(dclass,dclass.training_data2,vectorizerc,tfidf_transformerc,train=True,ICF=True)			#default min_df=5, use TF-ICF
 	find_10most(dclass,tfidf_c)
 
-	print ('-----Part D-----')													#SVD and NMF base on TF-IDF5 result
+	print ('-----Part D-----')																						#SVD and NMF base on TF-IDF5 result
 	svd = TruncatedSVD(n_components=50, n_iter=7, random_state=42)
 	D_LSI = svd.fit_transform(tfidf5)
 	model = NMF(n_components=50, init='random', random_state=0)
 	D_NMF = model.fit_transform(tfidf5)
 	print ('LSI.shape:',D_LSI.shape,'\nNMF.shape:',D_NMF.shape)
 
-	print ('-----Part E-----')											#SVM
-	tfidftest = preprocess(dclass,dclass.testing_data1)					#testing data
-	D_LSI_test = svd.fit_transform(tfidftest)
-	D_NMF_test = model.fit_transform(tfidftest)
+	print ('-----Part E-----')																						#SVM
+	tfidftest = preprocess(dclass,dclass.testing_data1,vectorizer5,tfidf_transformer5,train=False)					#testing data
+	D_LSI_test = svd.transform(tfidftest)
+	D_NMF_test = model.transform(tfidftest)
 	print ('for D_LSI:')
 	part_e(dclass,D_LSI,D_LSI_test)
 	print ('for D_NMF:')
