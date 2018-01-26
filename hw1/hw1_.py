@@ -4,8 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import string
 import re
-from nltk.stem import WordNetLemmatizer 
-from nltk import word_tokenize
+from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.decomposition import TruncatedSVD
@@ -14,14 +13,8 @@ from sklearn.svm import SVC
 from sklearn.metrics import roc_curve
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import GridSearchCV
-
-class LemmaTokenizer(object):
-	def __init__(self):
-		self.wnl = WordNetLemmatizer()
-	def __call__(self, doc):
-		return [self.wnl.lemmatize(t) for t in word_tokenize(doc)]
-
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import LogisticRegression
 
 class Data:															#all the data from Internet database with diff category sets
 	def __init__(self,cat1,cat2):
@@ -39,28 +32,32 @@ class Data:															#all the data from Internet database with diff categor
 		self.testing_data1 = self.data3.data 										# get the data
 		self.testing_target1 = np.array([int(i>3) for i in self.data3.target]) 		# get the target--> binary class, so change 8 sub class to 2 class
 
-class model:
-	pass
-
-
-def plot_histogram(data): 															#part A
+def plot_histogram(dclass): 															#part A
 	dictt = {}
-	for i in data.categories1:
+	for i in dclass.categories1:
 		training_data = fetch_20newsgroups(data_home = '/Volumes/Transcend/219/hw1/data',subset='train', categories=[i])
 		dictt[i] = len(training_data.data)
-	plt.bar([i for i in range(1,9)], list(dictt.values()))
+
+	fig,ax = plt.subplots()
+	plt.bar(list(dclass.data1.target_names), list(dictt.values()))
+	labels = ax.get_xticklabels()
+	plt.setp(labels, rotation=20, fontsize=10)
 	plt.show()
 
 def preprocess(dclass,data,vectorizer,tfidf_transformer,train=True,ICF=False):		#preprocess(re + TF-IDF)
 	data_re = doc_re(data)
+	#print (data_re)
 	data_tfidf = tfidf(dclass,data_re,vectorizer,tfidf_transformer,train,ICF)		#default ICF=False
 	return data_tfidf
 
 def doc_re(data):																	#remove puntuation
+	stop_words = text.ENGLISH_STOP_WORDS
+	stem = WordNetLemmatizer()
 	regex = re.compile('[%s]' % re.escape(string.punctuation))
 	filter_punc = [regex.sub('', text) for text in data]
-	le = LemmaTokenizer()
-	return [' '.join(le.__call__(text)) for text in filter_punc]
+	print (len(filter_punc))
+	print ('the' in stop_words)
+	return [' '.join([stem.lemmatize(word.lower()) for word in doc.split(' ') if word.lower() not in stop_words])for doc in filter_punc]
 
 def tfidf(dclass,doc_re,vectorizer,tfidf_transformer,train,ICF):					#TF-IDF or TF-ICF using "ICF" parameter, default ICF is false
 	X = vectorizer.fit_transform(doc_re) if train else vectorizer.transform(doc_re)
@@ -135,6 +132,42 @@ def part_f(dclass,D):
 		max_  = scores if scores > max_ else max_
 	print ('best gamma =',g_max,',which has cross validation score:',max_)
 
+def part_g(dclass,D,Dtest):
+	clf = MultinomialNB()
+	clf.fit(D, dclass.training_target1)
+	pred = clf.predict_proba(Dtest)
+	plot_ROC(pred,dclass.testing_target1)
+	y_true = dclass.testing_target1
+	y_pred = [int(i[1]>0.5) for i in pred]
+
+	print (confusion_matrix(y_true, y_pred))
+	acc_rec_pre(y_true,y_pred)
+
+def part_h(dclass,D,Dtest):
+	clf = LogisticRegression()
+	clf.fit(D,dclass.training_target1)
+	pred = clf.predict_proba(Dtest)
+	plot_ROC(pred,dclass.testing_target1)
+	y_true = dclass.testing_target1
+	y_pred = [int(i[1]>0.5) for i in pred]
+
+	print (confusion_matrix(y_true, y_pred))
+	acc_rec_pre(y_true,y_pred)
+
+def part_i(dclass,D,Dtest):
+	error1 = []
+	error2 = []
+	for c in [0.001, 0.01, 0.1, 1, 10, 100, 1000]:
+		clf1 = LogisticRegression(penalty='l1',C=c)
+		clf2 = LogisticRegression(penalty='l2',C=c)
+		clf1.fit(D,dclass.training_target1)
+		clf2.fit(D,dclass.training_target1)
+		pred1 = clf1.predict(Dtest)
+		pred2 = clf2.predict(Dtest)
+		error1.append( sum([int(i!=j) for i,j in zip(pred1,dclass.testing_target1)])/len(dclass.testing_target1) )
+		error2.append( sum([int(i!=j) for i,j in zip(pred2,dclass.testing_target1)])/len(dclass.testing_target1) )
+	print ('error1',error1,'\nerror2',error2)
+
 def plot_ROC(pred_proba,target):
 	x,y = [],[]
 	fpr, tpr, thresholds = roc_curve(target, pred_proba[:,1])
@@ -160,13 +193,13 @@ def main():
 	stop_words = text.ENGLISH_STOP_WORDS
 
 	print ('-----Part A-----')
-	plot_histogram(dclass)
+	#plot_histogram(dclass)
 	print ('-----Part B-----')
 
-	vectorizer2 = CountVectorizer(min_df=2,stop_words=stop_words)
+	vectorizer2 = CountVectorizer(min_df=2,stop_words=stop_words,max_df=0.8)
 	tfidf_transformer2 = TfidfTransformer()
 
-	vectorizer5 = CountVectorizer(min_df=5,stop_words=stop_words)
+	vectorizer5 = CountVectorizer(min_df=5,stop_words=stop_words,max_df=0.8)
 	tfidf_transformer5 = TfidfTransformer()
 	tfidf2 = preprocess(dclass,dclass.training_data1,vectorizer2,tfidf_transformer2,train=True)
 	tfidf5 = preprocess(dclass,dclass.training_data1,vectorizer5,tfidf_transformer5,train=True)						#default min_df=5
@@ -174,7 +207,7 @@ def main():
 	print ('# of terms with min_df = 2:',tfidf2[0,:].toarray().shape[1],'\n# of terms with min_df = 5:',tfidf5[0,:].toarray().shape[1])
 	
 	print ('-----Part C-----')
-	vectorizerc = CountVectorizer(min_df=5,stop_words=stop_words)
+	vectorizerc = CountVectorizer(min_df=5,stop_words=stop_words,max_df=0.8)
 	tfidf_transformerc = TfidfTransformer()
 
 	tfidf_c = preprocess(dclass,dclass.training_data2,vectorizerc,tfidf_transformerc,train=True,ICF=True)			#default min_df=5, use TF-ICF
@@ -191,6 +224,7 @@ def main():
 	tfidftest = preprocess(dclass,dclass.testing_data1,vectorizer5,tfidf_transformer5,train=False)					#testing data
 	D_LSI_test = svd.transform(tfidftest)
 	D_NMF_test = model.transform(tfidftest)
+	
 	print ('for D_LSI:')
 	part_e(dclass,D_LSI,D_LSI_test)
 	print ('for D_NMF:')
@@ -201,6 +235,18 @@ def main():
 	part_f(dclass,D_LSI)
 	print ('for D_NMF:')
 	part_f(dclass,D_NMF)
+	
+	print ('-----Part G-----')
+	print ('for D_LSI:')
+	part_g(dclass,tfidf5,tfidftest)
+	
+	print ('-----Part H-----')
+	part_h(dclass,D_LSI,D_LSI_test)
+	part_h(dclass,D_NMF,D_NMF_test)
+	
+	print ('-----Part I-----')
+	part_i(dclass,D_LSI,D_LSI_test)
+	part_i(dclass,D_NMF,D_NMF_test)
 
 	#####################
 	#for Tony: the final data for input data is D_LSI and D_NMF
