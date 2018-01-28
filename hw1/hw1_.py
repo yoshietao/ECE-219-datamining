@@ -59,7 +59,7 @@ def doc_re(data):																	#remove puntuation
 
 def tfidf(dclass,doc_re,vectorizer,tfidf_transformer,train,ICF):					#TF-IDF or TF-ICF using "ICF" parameter, default ICF is false
 	X = vectorizer.fit_transform(doc_re) if train else vectorizer.transform(doc_re)
-	shape = X.toarray().shape
+	shape = X[0].toarray().shape
 	#print (shape)
 	if ICF:
 		dclass.vocabulary = {i[1]:i[0] for i in vectorizer.vocabulary_.items()}
@@ -244,7 +244,7 @@ def main(choose_mindf):
 	part_f(dclass,D_NMF,D_NMF_test)
 	
 	print ('-----Part G-----')
-	part_g(dclass,d_tfidf[choose_mindf],tfidftest)
+	part_g(dclass,D_NMF,D_NMF_test)
 	
 	print ('-----Part H-----')
 	part_h(dclass,D_LSI,D_LSI_test)
