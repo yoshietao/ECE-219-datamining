@@ -15,6 +15,7 @@ from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import cross_val_score
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.linear_model import LogisticRegression
+import sys
 
 class Data:															#all the data from Internet database with diff category sets
 	def __init__(self,cat1,cat2):
@@ -46,7 +47,6 @@ def plot_histogram(dclass): 															#part A
 
 def preprocess(dclass,data,vectorizer,tfidf_transformer,train=True,ICF=False):		#preprocess(re + TF-IDF)
 	data_re = doc_re(data)
-	#print (data_re)
 	data_tfidf = tfidf(dclass,data_re,vectorizer,tfidf_transformer,train,ICF)		#default ICF=False
 	return data_tfidf
 
@@ -55,8 +55,6 @@ def doc_re(data):																	#remove puntuation
 	stem = WordNetLemmatizer()
 	regex = re.compile('[%s]' % re.escape(string.punctuation))
 	filter_punc = [regex.sub('', text) for text in data]
-	print (len(filter_punc))
-	print ('the' in stop_words)
 	return [' '.join([stem.lemmatize(word.lower()) for word in doc.split(' ') if word.lower() not in stop_words])for doc in filter_punc]
 
 def tfidf(dclass,doc_re,vectorizer,tfidf_transformer,train,ICF):					#TF-IDF or TF-ICF using "ICF" parameter, default ICF is false
@@ -88,9 +86,10 @@ def find_10most(dclass,doc):													#find most significant terms
 	for id_,i in enumerate(index):
 		print (dclass.data2.target_names[i],':',[dclass.vocabulary[int(j[1])] for j in max_10[id_]])
 
-def part_e(dclass,D,Dtest):															#SVD using gamma=1000 and 0.001
-	clf_1000 = SVC(gamma=1000, probability=True)
-	clf_01   = SVC(gamma=0.001, probability=True)
+def part_e(dclass,D,Dtest):															#SVD using C=1000 and 0.001
+	clf_1000 = SVC(C=1000, probability=True, kernel='linear')
+	clf_01   = SVC(C=0.001, probability=True, kernel='linear')
+	
 	target   = [i*2-1 for i in dclass.training_target1]
 	clf_1000.fit(D, target) 
 	clf_01.fit(D, target)
@@ -98,80 +97,78 @@ def part_e(dclass,D,Dtest):															#SVD using gamma=1000 and 0.001
 	pred_1000 = clf_1000.predict_proba(Dtest)
 	pred_01 = clf_01.predict_proba(Dtest)
 
-	#print (pred_01,pred_01.shape)
+	ROC_CON_ACC_REC_PRE(pred_1000,dclass.testing_target1)
+	ROC_CON_ACC_REC_PRE(pred_01,dclass.testing_target1)
 
-	plot_ROC(pred_1000,dclass.testing_target1)
-	plot_ROC(pred_01,dclass.testing_target1)
-
-	y_true = dclass.testing_target1
-	y_pred_1000 = [int(i[1]>0.5) for i in pred_1000]
-	y_pred_01	= [int(i[1]>0.5) for i in pred_01]
-
-	print (confusion_matrix(y_true, y_pred_1000),'\n',confusion_matrix(y_true, y_pred_01))
-	acc_rec_pre(y_true,y_pred_1000)
-	acc_rec_pre(y_true,y_pred_01)
-
-	################################### best gamma value in part f
-	clf = SVC(gamma=10,probability=True)
-	clf.fit(D,target)
-	pre = clf.predict_proba(Dtest)
-	plot_ROC(pre,dclass.testing_target1)
-	y_pred = [int(i[1]>0.5) for i in pre]
-	print (confusion_matrix(y_true, y_pred))
-	acc_rec_pre(y_true,y_pred)
-	###################################
-
-def part_f(dclass,D):
-	gamma = [0.001, 0.01, 0.1, 1, 10, 100, 1000]
+def part_f(dclass,D,Dtest):
+	C = [0.001, 0.01, 0.1, 1, 10, 100, 1000]
 	max_ = 0
-	g_max = 0
-	for i in gamma:
-		clf = SVC(gamma = i)
+	c_max = 0
+	for i in C:
+		clf = SVC(C = i, kernel='linear')
 		scores = sum(cross_val_score(clf, D, dclass.training_target1, cv=5))/5
-		g_max = i if scores > max_ else g_max
+		print (scores)
+		c_max = i if scores > max_ else c_max
 		max_  = scores if scores > max_ else max_
-	print ('best gamma =',g_max,',which has cross validation score:',max_)
+	print ('best C =',c_max,',which has cross validation score:',max_)
+
+	clf = SVC(C=c_max, probability=True, kernel='linear')
+	target   = [i*2-1 for i in dclass.training_target1]
+	clf.fit(D, target)
+	pred = clf.predict_proba(Dtest)
+	ROC_CON_ACC_REC_PRE(pred,dclass.testing_target1)
 
 def part_g(dclass,D,Dtest):
 	clf = MultinomialNB()
 	clf.fit(D, dclass.training_target1)
 	pred = clf.predict_proba(Dtest)
-	plot_ROC(pred,dclass.testing_target1)
-	y_true = dclass.testing_target1
-	y_pred = [int(i[1]>0.5) for i in pred]
-
-	print (confusion_matrix(y_true, y_pred))
-	acc_rec_pre(y_true,y_pred)
+	
+	ROC_CON_ACC_REC_PRE(pred,dclass.testing_target1)
 
 def part_h(dclass,D,Dtest):
 	clf = LogisticRegression()
 	clf.fit(D,dclass.training_target1)
 	pred = clf.predict_proba(Dtest)
-	plot_ROC(pred,dclass.testing_target1)
-	y_true = dclass.testing_target1
-	y_pred = [int(i[1]>0.5) for i in pred]
-
-	print (confusion_matrix(y_true, y_pred))
-	acc_rec_pre(y_true,y_pred)
+	
+	ROC_CON_ACC_REC_PRE(pred,dclass.testing_target1)
 
 def part_i(dclass,D,Dtest):
 	error1 = []
 	error2 = []
-	for c in [0.001, 0.01, 0.1, 1, 10, 100, 1000]:
+	c_list = [0.001, 0.01, 0.1, 1, 10, 100, 1000]
+	for c in c_list:
 		clf1 = LogisticRegression(penalty='l1',C=c)
 		clf2 = LogisticRegression(penalty='l2',C=c)
 		clf1.fit(D,dclass.training_target1)
 		clf2.fit(D,dclass.training_target1)
-		pred1 = clf1.predict(Dtest)
-		pred2 = clf2.predict(Dtest)
-		error1.append( sum([int(i!=j) for i,j in zip(pred1,dclass.testing_target1)])/len(dclass.testing_target1) )
-		error2.append( sum([int(i!=j) for i,j in zip(pred2,dclass.testing_target1)])/len(dclass.testing_target1) )
+		pred1 = clf1.predict_proba(Dtest)
+		pred2 = clf2.predict_proba(Dtest)
+		error1.append( sum([int(int(i>0.5)!=j) for i,j in zip(pred1[:,1],dclass.testing_target1)])/len(dclass.testing_target1) )
+		error2.append( sum([int(int(i>0.5)!=j) for i,j in zip(pred2[:,1],dclass.testing_target1)])/len(dclass.testing_target1) )
 	print ('error1',error1,'\nerror2',error2)
+	max_1 = c_list[np.argmin(np.array(error1))]
+	max_2 = c_list[np.argmin(np.array(error2))]
+
+	clf1 = LogisticRegression(penalty='l1',C=max_1)
+	clf2 = LogisticRegression(penalty='l2',C=max_2)
+
+	clf1.fit(D,dclass.training_target1)
+	clf2.fit(D,dclass.training_target1)
+	
+	pred1 = clf1.predict_proba(Dtest)
+	pred2 = clf2.predict_proba(Dtest)
+
+	ROC_CON_ACC_REC_PRE(pred1,dclass.testing_target1)
+	ROC_CON_ACC_REC_PRE(pred2,dclass.testing_target1)
+	
 
 def plot_ROC(pred_proba,target):
 	x,y = [],[]
 	fpr, tpr, thresholds = roc_curve(target, pred_proba[:,1])
 	plt.plot(fpr,tpr)
+	plt.title('roc_curve')
+	plt.ylabel('TPR')
+	plt.xlabel('FPR')
 	plt.show()
 
 def acc_rec_pre(y_true,y_pred):
@@ -185,7 +182,13 @@ def acc_rec_pre(y_true,y_pred):
 	recall = correct_1/sum(y_true)
 	print ('accuracy/precision/recall=',accuracy,precision,recall)
 
-def main():
+def ROC_CON_ACC_REC_PRE(pred_proba,y_true):
+	plot_ROC(pred_proba,y_true)
+	y_pred = [int(i[1]>0.5) for i in pred_proba]
+	print (confusion_matrix(y_true, y_pred))
+	acc_rec_pre(y_true,y_pred)
+
+def main(choose_mindf):
 	categories1 = ['comp.graphics', 'comp.os.ms-windows.misc','comp.sys.ibm.pc.hardware','comp.sys.mac.hardware','rec.autos','rec.motorcycles','rec.sport.baseball','rec.sport.hockey']
 	categories2 = ['comp.sys.ibm.pc.hardware', 'comp.sys.mac.hardware', 'misc.forsale', 'soc.religion.christian']
 	cat_all = ['comp.sys.ibm.pc.hardware', 'comp.sys.mac.hardware', 'misc.forsale', 'soc.religion.christian', 'alt.atheism', 'comp.graphics', 'comp.os.ms-windows.misc', 'comp.windows.x', 'rec.autos', 'rec.motorcycles', 'rec.sport.baseball', 'rec.sport.hockey', 'sci.crypt', 'sci.electronics', 'sci.med', 'sci.space', 'talk.politics.guns', 'talk.politics.mideast', 'talk.politics.misc', 'talk.religion.misc']
@@ -205,6 +208,10 @@ def main():
 	tfidf5 = preprocess(dclass,dclass.training_data1,vectorizer5,tfidf_transformer5,train=True)						#default min_df=5
 
 	print ('# of terms with min_df = 2:',tfidf2[0,:].toarray().shape[1],'\n# of terms with min_df = 5:',tfidf5[0,:].toarray().shape[1])
+
+	d_tfidf = {'2':tfidf2,'5':tfidf5}
+	d_vectorizer = {'2':vectorizer2,'5':vectorizer5}
+	d_transformer = {'2':tfidf_transformer2,'5':tfidf_transformer5}
 	
 	print ('-----Part C-----')
 	vectorizerc = CountVectorizer(min_df=5,stop_words=stop_words,max_df=0.8)
@@ -212,16 +219,16 @@ def main():
 
 	tfidf_c = preprocess(dclass,dclass.training_data2,vectorizerc,tfidf_transformerc,train=True,ICF=True)			#default min_df=5, use TF-ICF
 	find_10most(dclass,tfidf_c)
-
+	
 	print ('-----Part D-----')																						#SVD and NMF base on TF-IDF5 result
 	svd = TruncatedSVD(n_components=50, n_iter=7, random_state=42)
-	D_LSI = svd.fit_transform(tfidf5)
+	D_LSI = svd.fit_transform(d_tfidf[choose_mindf])
 	model = NMF(n_components=50, init='random', random_state=0)
-	D_NMF = model.fit_transform(tfidf5)
+	D_NMF = model.fit_transform(d_tfidf[choose_mindf])
 	print ('LSI.shape:',D_LSI.shape,'\nNMF.shape:',D_NMF.shape)
 
 	print ('-----Part E-----')																						#SVM
-	tfidftest = preprocess(dclass,dclass.testing_data1,vectorizer5,tfidf_transformer5,train=False)					#testing data
+	tfidftest = preprocess(dclass,dclass.testing_data1,d_vectorizer[choose_mindf],d_transformer[choose_mindf],train=False)					#testing data
 	D_LSI_test = svd.transform(tfidftest)
 	D_NMF_test = model.transform(tfidftest)
 	
@@ -232,13 +239,12 @@ def main():
 
 	print ('-----Part F-----')
 	print ('for D_LSI:')
-	part_f(dclass,D_LSI)
+	part_f(dclass,D_LSI,D_LSI_test)
 	print ('for D_NMF:')
-	part_f(dclass,D_NMF)
+	part_f(dclass,D_NMF,D_NMF_test)
 	
 	print ('-----Part G-----')
-	print ('for D_LSI:')
-	part_g(dclass,tfidf5,tfidftest)
+	part_g(dclass,d_tfidf[choose_mindf],tfidftest)
 	
 	print ('-----Part H-----')
 	part_h(dclass,D_LSI,D_LSI_test)
@@ -249,13 +255,8 @@ def main():
 	part_i(dclass,D_NMF,D_NMF_test)
 
 	#####################
-	#for Tony: the final data for input data is D_LSI and D_NMF
-	#So basically you can feed these two in any classifier, as I did in part E
-	#And the testing data, if you need, is processed and named D_LSI_test and D_NMF_test
-	#Also, beware that all task in (g)-(i) should be done base on both D_LSI and D_NMF input data
+	#Left: problem J
 	#####################
 
-
-
 if __name__ == '__main__':
-	main()
+	main(sys.argv[1])
