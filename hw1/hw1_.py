@@ -18,12 +18,12 @@ from sklearn.linear_model import LogisticRegression
 import sys
 
 class Data:															#all the data from Internet database with diff category sets
-	def __init__(self,cat1,cat2):
+	def __init__(self,cat1,cat2,path):
 		self.categories1 = cat1
 		self.categories2 = cat2
-		self.data1 = fetch_20newsgroups(data_home = '/Volumes/Transcend/219/hw1/data',subset='train', categories=cat1, shuffle=True, random_state=42)
-		self.data2 = fetch_20newsgroups(data_home = '/Volumes/Transcend/219/hw1/data',subset='train', categories=cat2, shuffle=True, random_state=42)
-		self.data3 = fetch_20newsgroups(data_home = '/Volumes/Transcend/219/hw1/data',subset='test', categories=cat1, shuffle=False, random_state=42)
+		self.data1 = fetch_20newsgroups(data_home = path,subset='train', categories=cat1, shuffle=True, random_state=42)
+		self.data2 = fetch_20newsgroups(data_home = path,subset='train', categories=cat2, shuffle=True, random_state=42)
+		self.data3 = fetch_20newsgroups(data_home = path,subset='test', categories=cat1, shuffle=False, random_state=42)
 		self.training_data1 = self.data1.data 										# get the data
 		self.training_target1 = np.array([int(i>3) for i in self.data1.target])		# get the target--> binary class, so change 8 sub class to 2 class
 		#for i in range(len(self.training_target1)):
@@ -36,7 +36,7 @@ class Data:															#all the data from Internet database with diff categor
 def plot_histogram(dclass): 															#part A
 	dictt = {}
 	for i in dclass.categories1:
-		training_data = fetch_20newsgroups(data_home = '/Volumes/Transcend/219/hw1/data',subset='train', categories=[i])
+		training_data = fetch_20newsgroups(data_home = path,subset='train', categories=[i])
 		dictt[i] = len(training_data.data)
 
 	fig,ax = plt.subplots()
@@ -188,11 +188,16 @@ def ROC_CON_ACC_REC_PRE(pred_proba,y_true):
 	print (confusion_matrix(y_true, y_pred))
 	acc_rec_pre(y_true,y_pred)
 
-def main(choose_mindf):
+def main(argv):
+	choose_mindf = argv[1]
+	try:
+		path = argv[2]
+	except:
+		path = None
 	categories1 = ['comp.graphics', 'comp.os.ms-windows.misc','comp.sys.ibm.pc.hardware','comp.sys.mac.hardware','rec.autos','rec.motorcycles','rec.sport.baseball','rec.sport.hockey']
 	categories2 = ['comp.sys.ibm.pc.hardware', 'comp.sys.mac.hardware', 'misc.forsale', 'soc.religion.christian']
 	cat_all = ['comp.sys.ibm.pc.hardware', 'comp.sys.mac.hardware', 'misc.forsale', 'soc.religion.christian', 'alt.atheism', 'comp.graphics', 'comp.os.ms-windows.misc', 'comp.windows.x', 'rec.autos', 'rec.motorcycles', 'rec.sport.baseball', 'rec.sport.hockey', 'sci.crypt', 'sci.electronics', 'sci.med', 'sci.space', 'talk.politics.guns', 'talk.politics.mideast', 'talk.politics.misc', 'talk.religion.misc']
-	dclass = Data(categories1,cat_all)
+	dclass = Data(categories1,cat_all,path)
 	stop_words = text.ENGLISH_STOP_WORDS
 
 	print ('-----Part A-----')
@@ -259,4 +264,4 @@ def main(choose_mindf):
 	#####################
 
 if __name__ == '__main__':
-	main(sys.argv[1])
+	main(sys.argv)
