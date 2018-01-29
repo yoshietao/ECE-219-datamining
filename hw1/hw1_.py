@@ -10,11 +10,15 @@ from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.decomposition import TruncatedSVD
 from sklearn.decomposition import NMF
 from sklearn.svm import SVC
+from sklearn.svm import LinearSVC
 from sklearn.metrics import roc_curve
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import cross_val_score
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.linear_model import LogisticRegression
+from sklearn.multiclass import OneVsOneClassifier, OneVsRestClassifier
+
+
 import sys
 
 class Data:															#all the data from Internet database with diff category sets
@@ -43,6 +47,16 @@ class Data:															#all the data from Internet database with diff categor
 		self.testing_dataj = self.dataj_test.data
 		self.testing_targetj = self.dataj_test.target
 
+"""
+class Data_J:
+	def __init__(self, cat, path):
+		self.data1 = fetch_20newsgroups(data_home = path,subset='train', categories=cat, shuffle=True, random_state=42)
+		self.training_data1 = self.data1.data
+		self.training_target1 = np.array(self.data1.target)
+		self.data2 = fetch_20newsgroups(data_home = path,subset='test', categories=cat, shuffle=False, random_state=42)
+		self.testing_data1 = self.data2.data
+		self.testing_target1 = np.array(self.data2.target)
+"""
 
 def plot_histogram(dclass): 															#part A
 	dictt = {}
@@ -182,6 +196,16 @@ def part_i(dclass,D,Dtest):
 	ROC_CON_ACC_REC_PRE(pred2,dclass.testing_target1)
 	print ('avg weight:',avg_w1,'\n',avg_w2)
 
+def part_j_SVM(dclass, D, Dtest):
+	y_pred_onevsone = OneVsOneClassifier(LinearSVC(random_state=0)).fit(D, dclass.training_targetj).predict(Dtest)
+	y_true = np.array(dclass.testing_targetj)
+	print('--------One Vs One SVM---------')
+	con_acc_rec_pre_j(y_pred_onevsone, y_true, INT=True)
+
+	y_pred_onevsrest = OneVsRestClassifier(LinearSVC(random_state=0)).fit(D, dclass.training_targetj).predict(Dtest)
+	print('--------One Vs Rest SVM--------')
+	con_acc_rec_pre_j(y_pred_onevsrest, y_true, INT=True)
+
 
 def plot_ROC(pred_proba,target):
 
@@ -209,8 +233,12 @@ def ROC_CON_ACC_REC_PRE(pred_proba,y_true):
 	print (confusion_matrix(y_true, y_pred))
 	acc_rec_pre(y_true,y_pred)
 
-def con_acc_rec_pre_j(pred_proba,y_true):
-	y_pred = np.argmax(pred_proba, axis=1)
+def con_acc_rec_pre_j(pred_proba,y_true, INT=False):
+	if INT :
+		y_pred = pred_proba
+	else:
+		y_pred = np.argmax(pred_proba, axis=1)
+
 	y_true = np.array(y_true)
 	confusion_matrix_j = confusion_matrix(y_true, y_pred)
 	print ('confusion_matrix: \n', confusion_matrix_j)
@@ -222,8 +250,8 @@ def con_acc_rec_pre_j(pred_proba,y_true):
 	precision = np.zeros(4)
 	recall = np.zeros(4)
 
-	for i in xrange(4):
-		accuracy += confusion_matrix[i][i]
+	for i in range(4):
+		accuracy += confusion_matrix_j[i][i]
 		precision[i] = confusion_matrix_j[i][i]/sum_row[i]
 		recall[i] = confusion_matrix_j[i][i]/sum_col[i]
 
@@ -296,6 +324,7 @@ def main(argv):
 	D_LSI_test = svd.transform(tfidftest)
 	D_NMF_test = model.transform(tfidftest)
 	
+	"""
 	print ('for D_LSI:')
 	part_e(dclass,D_LSI,D_LSI_test)
 	print ('for D_NMF:')
@@ -317,32 +346,102 @@ def main(argv):
 	print ('-----Part I-----')
 	part_i(dclass,D_LSI,D_LSI_test)
 	part_i(dclass,D_NMF,D_NMF_test)
+	"""
 
 	print ('-----Part J-----')
 	
 	tfidf2_j = preprocess(dclass,dclass.training_dataj,vectorizer2,tfidf_transformer2,train=True)
-	tfidf5_j = preprocess(dclass,dclass.training_dataj,vectorizer5,tfidf_transformer5,train=True)
+	D_LSI_j = svd.fit_transform(tfidf2_j)
+	D_NMF_j = model.fit_transform(tfidf2_j)
 
-	d_tfidf_j = {'2':tfidf2_j,'5':tfidf5_j}
-
-	D_LSI_j = svd.fit_transform(d_tfidf_j[choose_mindf])
-	D_NMF_j = model.fit_transform(d_tfidf_j[choose_mindf])
-
-	tfidftest_j = preprocess(dclass,dclass.testing_dataj,d_vectorizer[choose_mindf],d_transformer[choose_mindf],train=False)					#testing data
+	tfidftest_j = preprocess(dclass,dclass.testing_dataj,vectorizer2,tfidf_transformer2,train=False)					#testing data
 	D_LSI_test_j = svd.transform(tfidftest_j)
 	D_NMF_test_j = model.transform(tfidftest_j)
 
-	
+	print ('----------------Naive Bayes in J-----------------')
 	part_g(dclass,D_NMF_j,D_NMF_test_j, dclass.training_targetj, True)
 
-	catt_1 = ['comp.sys.ibm.pc.hardware', 'comp.sys.mac.hardware']
-	catt_2 = ['comp.sys.ibm.pc.hardware', 'misc.forsale']
-	catt_3 = ['comp.sys.ibm.pc.hardware', 'soc.religion.christian']
-	catt_4 = ['comp.sys.mac.hardware', 'misc.forsale']
-	catt_5 = ['comp.sys.mac.hardware', 'soc.religion.christian']
-	catt_6 = ['misc.forsale', 'soc.religion.christian']
+	print ('----------------SVM in J with LSI data-----------')
+	part_j_SVM(dclass, D_LSI_j, D_LSI_test_j)
 
-	
+	print ('----------------SVM in J with NMF data-----------')
+	part_j_SVM(dclass, D_NMF_j, D_NMF_test_j)
+
+
+
+	"""
+	cat_0_1 = ['comp.sys.ibm.pc.hardware', 'comp.sys.mac.hardware']
+	cat_0_2 = ['comp.sys.ibm.pc.hardware', 'misc.forsale']
+	cat_0_3 = ['comp.sys.ibm.pc.hardware', 'soc.religion.christian']
+	cat_1_2 = ['comp.sys.mac.hardware', 'misc.forsale']
+	cat_1_3 = ['comp.sys.mac.hardware', 'soc.religion.christian']
+	cat_2_3 = ['misc.forsale', 'soc.religion.christian']
+
+	dclass_0_1 = Data_J(cat_0_1, path)
+	dclass_0_2 = Data_J(cat_0_2, path)
+	dclass_0_3 = Data_J(cat_0_3, path)
+	dclass_1_2 = Data_J(cat_1_2, path)
+	dclass_1_3 = Data_J(cat_1_3, path)
+	dclass_2_3 = Data_J(cat_2_3, path)
+	dclass_test = Data_J(categories2, path)
+
+	tfidf_0_1 = preprocess(dclass_0_1,dclass_0_1.training_data1,vectorizer2,tfidf_transformer2,train=True)
+	tfidf_0_2 = preprocess(dclass_0_2,dclass_0_2.training_data1,vectorizer2,tfidf_transformer2,train=True)
+	tfidf_0_3 = preprocess(dclass_0_3,dclass_0_3.training_data1,vectorizer2,tfidf_transformer2,train=True)
+	tfidf_1_2 = preprocess(dclass_1_2,dclass_1_2.training_data1,vectorizer2,tfidf_transformer2,train=True)
+	tfidf_1_3 = preprocess(dclass_1_3,dclass_1_3.training_data1,vectorizer2,tfidf_transformer2,train=True)
+	tfidf_2_3 = preprocess(dclass_2_3,dclass_2_3.training_data1,vectorizer2,tfidf_transformer2,train=True)
+	tfidf_test = preprocess(dclass_test,dclass_test.testing_data1,vectorizer2,tfidf_transformer2,train=False)
+
+	D_LSI_0_1 = svd.fit_transform(tfidf_0_1)
+	D_LSI_0_2 = svd.fit_transform(tfidf_0_2)
+	D_LSI_0_3 = svd.fit_transform(tfidf_0_3)
+	D_LSI_1_2 = svd.fit_transform(tfidf_1_2)
+	D_LSI_1_3 = svd.fit_transform(tfidf_1_3)
+	D_LSI_2_3 = svd.fit_transform(tfidf_2_3)
+	D_LSI_test = svd.fit_transform(tfidf_test)
+
+	D_NMF_0_1 = model.fit_transform(tfidf_0_1)
+	D_NMF_0_2 = model.fit_transform(tfidf_0_2)
+	D_NMF_0_3 = model.fit_transform(tfidf_0_3)
+	D_NMF_1_2 = model.fit_transform(tfidf_1_2)
+	D_NMF_1_3 = model.fit_transform(tfidf_1_3)
+	D_NMF_2_3 = model.fit_transform(tfidf_2_3)
+	D_NMF_test = model.fit_transform(tfidf_test)
+
+	clf_0_1 = SVC(probability=True, kernel='linear')
+	clf_0_2 = SVC(probability=True, kernel='linear')
+	clf_0_3 = SVC(probability=True, kernel='linear')
+	clf_1_2 = SVC(probability=True, kernel='linear')
+	clf_1_3 = SVC(probability=True, kernel='linear')
+	clf_2_3 = SVC(probability=True, kernel='linear')
+		
+	target_0_1   = [i*2-1 for i in dclass_0_1.training_target1]
+	clf_0_1.fit(D_LSI_0_1, target_0_1) 
+	target_0_2   = [i*2-1 for i in dclass_0_2.training_target1]
+	clf_0_2.fit(D_LSI_0_2, target_0_2)
+	target_0_3   = [i*2-1 for i in dclass_0_3.training_target1]
+	clf_0_3.fit(D_LSI_0_3, target_0_3) 
+	target_1_2   = [i*2-1 for i in dclass_1_2.training_target1]
+	clf_1_2.fit(D_LSI_1_2, target_1_2) 
+	target_1_3   = [i*2-1 for i in dclass_1_3.training_target1]
+	clf_1_3.fit(D_LSI_1_3, target_1_3) 
+	target_2_3   = [i*2-1 for i in dclass_2_3.training_target1]
+	clf_2_3.fit(D_LSI_2_3, target_2_3)
+
+	prob_0_1 = clf_0_1.predict_proba(D_LSI_test)
+	y_pred_0_1 = [int(i[1]>0.5) for i in prob_0_1]
+	prob_0_2 = clf_0_2.predict_proba(D_LSI_test)
+	y_pred_0_2 = [int(i[1]>0.5) for i in prob_0_2]
+	prob_0_3 = clf_0_3.predict_proba(D_LSI_test)
+	y_pred_0_3 = [int(i[1]>0.5) for i in prob_0_3]
+	prob_1_2 = clf_1_2.predict_proba(D_LSI_test)
+	y_pred_1_2 = [int(i[1]>0.5) for i in prob_1_2]
+	prob_1_3 = clf_1_3.predict_proba(D_LSI_test)
+	y_pred_1_3 = [int(i[1]>0.5) for i in prob_1_3]
+	prob_2_3 = clf_2_3.predict_proba(D_LSI_test)
+	y_pred_2_3 = [int(i[1]>0.5) for i in prob_2_3]
+	"""
 
 
 	#####################
