@@ -126,7 +126,7 @@ def part_g(dclass,D,Dtest):
 	ROC_CON_ACC_REC_PRE(pred,dclass.testing_target1)
 
 def part_h(dclass,D,Dtest):
-	clf = LogisticRegression()
+	clf = LogisticRegression(C=1000)
 	clf.fit(D,dclass.training_target1)
 	pred = clf.predict_proba(Dtest)
 	
@@ -135,6 +135,8 @@ def part_h(dclass,D,Dtest):
 def part_i(dclass,D,Dtest):
 	error1 = []
 	error2 = []
+	avg_w1 = []
+	avg_w2 = []
 	c_list = [0.001, 0.01, 0.1, 1, 10, 100, 1000]
 	for c in c_list:
 		clf1 = LogisticRegression(penalty='l1',C=c)
@@ -145,6 +147,9 @@ def part_i(dclass,D,Dtest):
 		pred2 = clf2.predict_proba(Dtest)
 		error1.append( sum([int(int(i>0.5)!=j) for i,j in zip(pred1[:,1],dclass.testing_target1)])/len(dclass.testing_target1) )
 		error2.append( sum([int(int(i>0.5)!=j) for i,j in zip(pred2[:,1],dclass.testing_target1)])/len(dclass.testing_target1) )
+		avg_w1.append(sum(np.abs(clf1.coef_[0]))/len(clf1.coef_[0]))
+		avg_w2.append(sum(np.abs(clf2.coef_[0]))/len(clf2.coef_[0]))
+	
 	print ('error1',error1,'\nerror2',error2)
 	max_1 = c_list[np.argmin(np.array(error1))]
 	max_2 = c_list[np.argmin(np.array(error2))]
@@ -160,10 +165,9 @@ def part_i(dclass,D,Dtest):
 
 	ROC_CON_ACC_REC_PRE(pred1,dclass.testing_target1)
 	ROC_CON_ACC_REC_PRE(pred2,dclass.testing_target1)
-	
+	print ('avg weight:',avg_w1,'\n',avg_w2)
 
 def plot_ROC(pred_proba,target):
-	x,y = [],[]
 	fpr, tpr, thresholds = roc_curve(target, pred_proba[:,1])
 	plt.plot(fpr,tpr)
 	plt.title('roc_curve')
@@ -219,7 +223,7 @@ def main(argv):
 	d_transformer = {'2':tfidf_transformer2,'5':tfidf_transformer5}
 	
 	print ('-----Part C-----')
-	vectorizerc = CountVectorizer(min_df=5,stop_words=stop_words,max_df=0.8)
+	vectorizerc = CountVectorizer(min_df=int(choose_mindf),stop_words=stop_words,max_df=0.8)
 	tfidf_transformerc = TfidfTransformer()
 
 	tfidf_c = preprocess(dclass,dclass.training_data2,vectorizerc,tfidf_transformerc,train=True,ICF=True)			#default min_df=5, use TF-ICF
@@ -236,7 +240,7 @@ def main(argv):
 	tfidftest = preprocess(dclass,dclass.testing_data1,d_vectorizer[choose_mindf],d_transformer[choose_mindf],train=False)					#testing data
 	D_LSI_test = svd.transform(tfidftest)
 	D_NMF_test = model.transform(tfidftest)
-	
+	'''
 	print ('for D_LSI:')
 	part_e(dclass,D_LSI,D_LSI_test)
 	print ('for D_NMF:')
@@ -254,7 +258,7 @@ def main(argv):
 	print ('-----Part H-----')
 	part_h(dclass,D_LSI,D_LSI_test)
 	part_h(dclass,D_NMF,D_NMF_test)
-	
+	'''
 	print ('-----Part I-----')
 	part_i(dclass,D_LSI,D_LSI_test)
 	part_i(dclass,D_NMF,D_NMF_test)
