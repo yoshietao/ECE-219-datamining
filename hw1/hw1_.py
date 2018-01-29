@@ -240,7 +240,7 @@ def main(argv):
 	tfidftest = preprocess(dclass,dclass.testing_data1,d_vectorizer[choose_mindf],d_transformer[choose_mindf],train=False)					#testing data
 	D_LSI_test = svd.transform(tfidftest)
 	D_NMF_test = model.transform(tfidftest)
-	'''
+	
 	print ('for D_LSI:')
 	part_e(dclass,D_LSI,D_LSI_test)
 	print ('for D_NMF:')
@@ -258,7 +258,7 @@ def main(argv):
 	print ('-----Part H-----')
 	part_h(dclass,D_LSI,D_LSI_test)
 	part_h(dclass,D_NMF,D_NMF_test)
-	'''
+	
 	print ('-----Part I-----')
 	part_i(dclass,D_LSI,D_LSI_test)
 	part_i(dclass,D_NMF,D_NMF_test)
