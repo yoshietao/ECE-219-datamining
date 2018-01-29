@@ -47,17 +47,6 @@ class Data:															#all the data from Internet database with diff categor
 		self.testing_dataj = self.dataj_test.data
 		self.testing_targetj = self.dataj_test.target
 
-"""
-class Data_J:
-	def __init__(self, cat, path):
-		self.data1 = fetch_20newsgroups(data_home = path,subset='train', categories=cat, shuffle=True, random_state=42)
-		self.training_data1 = self.data1.data
-		self.training_target1 = np.array(self.data1.target)
-		self.data2 = fetch_20newsgroups(data_home = path,subset='test', categories=cat, shuffle=False, random_state=42)
-		self.testing_data1 = self.data2.data
-		self.testing_target1 = np.array(self.data2.target)
-"""
-
 def plot_histogram(dclass): 															#part A
 	dictt = {}
 	for i in dclass.categories1:
@@ -294,10 +283,6 @@ def main(argv):
 	
 	print ('-----Part C-----')
 
-	#vectorizerc = CountVectorizer(min_df=int(choose_mindf),stop_words=stop_words,max_df=0.8)
-	#tfidf_transformerc = TfidfTransformer()
-
-
 	vectorizerc_2 = CountVectorizer(min_df=2,stop_words=stop_words,max_df=0.8)
 	tfidf_transformerc_2 = TfidfTransformer()
 
@@ -310,7 +295,6 @@ def main(argv):
 	tfidf_c_5 = preprocess(dclass,dclass.training_data2,vectorizerc_5,tfidf_transformerc_5,train=True,ICF=True)			#default min_df=5, use TF-ICF
 	find_10most(dclass,tfidf_c_5)
 
-
 	
 	print ('-----Part D-----')																						#SVD and NMF base on TF-IDF5 result
 	svd = TruncatedSVD(n_components=50, n_iter=7, random_state=42)
@@ -319,16 +303,16 @@ def main(argv):
 	D_NMF = model.fit_transform(d_tfidf[choose_mindf])
 	print ('LSI.shape:',D_LSI.shape,'\nNMF.shape:',D_NMF.shape)
 
+
 	print ('-----Part E-----')																						#SVM
 	tfidftest = preprocess(dclass,dclass.testing_data1,d_vectorizer[choose_mindf],d_transformer[choose_mindf],train=False)			#testing data
 	D_LSI_test = svd.transform(tfidftest)
 	D_NMF_test = model.transform(tfidftest)
-	
-	"""
 	print ('for D_LSI:')
 	part_e(dclass,D_LSI,D_LSI_test)
 	print ('for D_NMF:')
 	part_e(dclass,D_NMF,D_NMF_test)
+
 
 	print ('-----Part F-----')
 	print ('for D_LSI:')
@@ -346,7 +330,7 @@ def main(argv):
 	print ('-----Part I-----')
 	part_i(dclass,D_LSI,D_LSI_test)
 	part_i(dclass,D_NMF,D_NMF_test)
-	"""
+	
 
 	print ('-----Part J-----')
 	
@@ -367,86 +351,6 @@ def main(argv):
 	print ('----------------SVM in J with NMF data-----------')
 	part_j_SVM(dclass, D_NMF_j, D_NMF_test_j)
 
-
-
-	"""
-	cat_0_1 = ['comp.sys.ibm.pc.hardware', 'comp.sys.mac.hardware']
-	cat_0_2 = ['comp.sys.ibm.pc.hardware', 'misc.forsale']
-	cat_0_3 = ['comp.sys.ibm.pc.hardware', 'soc.religion.christian']
-	cat_1_2 = ['comp.sys.mac.hardware', 'misc.forsale']
-	cat_1_3 = ['comp.sys.mac.hardware', 'soc.religion.christian']
-	cat_2_3 = ['misc.forsale', 'soc.religion.christian']
-
-	dclass_0_1 = Data_J(cat_0_1, path)
-	dclass_0_2 = Data_J(cat_0_2, path)
-	dclass_0_3 = Data_J(cat_0_3, path)
-	dclass_1_2 = Data_J(cat_1_2, path)
-	dclass_1_3 = Data_J(cat_1_3, path)
-	dclass_2_3 = Data_J(cat_2_3, path)
-	dclass_test = Data_J(categories2, path)
-
-	tfidf_0_1 = preprocess(dclass_0_1,dclass_0_1.training_data1,vectorizer2,tfidf_transformer2,train=True)
-	tfidf_0_2 = preprocess(dclass_0_2,dclass_0_2.training_data1,vectorizer2,tfidf_transformer2,train=True)
-	tfidf_0_3 = preprocess(dclass_0_3,dclass_0_3.training_data1,vectorizer2,tfidf_transformer2,train=True)
-	tfidf_1_2 = preprocess(dclass_1_2,dclass_1_2.training_data1,vectorizer2,tfidf_transformer2,train=True)
-	tfidf_1_3 = preprocess(dclass_1_3,dclass_1_3.training_data1,vectorizer2,tfidf_transformer2,train=True)
-	tfidf_2_3 = preprocess(dclass_2_3,dclass_2_3.training_data1,vectorizer2,tfidf_transformer2,train=True)
-	tfidf_test = preprocess(dclass_test,dclass_test.testing_data1,vectorizer2,tfidf_transformer2,train=False)
-
-	D_LSI_0_1 = svd.fit_transform(tfidf_0_1)
-	D_LSI_0_2 = svd.fit_transform(tfidf_0_2)
-	D_LSI_0_3 = svd.fit_transform(tfidf_0_3)
-	D_LSI_1_2 = svd.fit_transform(tfidf_1_2)
-	D_LSI_1_3 = svd.fit_transform(tfidf_1_3)
-	D_LSI_2_3 = svd.fit_transform(tfidf_2_3)
-	D_LSI_test = svd.fit_transform(tfidf_test)
-
-	D_NMF_0_1 = model.fit_transform(tfidf_0_1)
-	D_NMF_0_2 = model.fit_transform(tfidf_0_2)
-	D_NMF_0_3 = model.fit_transform(tfidf_0_3)
-	D_NMF_1_2 = model.fit_transform(tfidf_1_2)
-	D_NMF_1_3 = model.fit_transform(tfidf_1_3)
-	D_NMF_2_3 = model.fit_transform(tfidf_2_3)
-	D_NMF_test = model.fit_transform(tfidf_test)
-
-	clf_0_1 = SVC(probability=True, kernel='linear')
-	clf_0_2 = SVC(probability=True, kernel='linear')
-	clf_0_3 = SVC(probability=True, kernel='linear')
-	clf_1_2 = SVC(probability=True, kernel='linear')
-	clf_1_3 = SVC(probability=True, kernel='linear')
-	clf_2_3 = SVC(probability=True, kernel='linear')
-		
-	target_0_1   = [i*2-1 for i in dclass_0_1.training_target1]
-	clf_0_1.fit(D_LSI_0_1, target_0_1) 
-	target_0_2   = [i*2-1 for i in dclass_0_2.training_target1]
-	clf_0_2.fit(D_LSI_0_2, target_0_2)
-	target_0_3   = [i*2-1 for i in dclass_0_3.training_target1]
-	clf_0_3.fit(D_LSI_0_3, target_0_3) 
-	target_1_2   = [i*2-1 for i in dclass_1_2.training_target1]
-	clf_1_2.fit(D_LSI_1_2, target_1_2) 
-	target_1_3   = [i*2-1 for i in dclass_1_3.training_target1]
-	clf_1_3.fit(D_LSI_1_3, target_1_3) 
-	target_2_3   = [i*2-1 for i in dclass_2_3.training_target1]
-	clf_2_3.fit(D_LSI_2_3, target_2_3)
-
-	prob_0_1 = clf_0_1.predict_proba(D_LSI_test)
-	y_pred_0_1 = [int(i[1]>0.5) for i in prob_0_1]
-	prob_0_2 = clf_0_2.predict_proba(D_LSI_test)
-	y_pred_0_2 = [int(i[1]>0.5) for i in prob_0_2]
-	prob_0_3 = clf_0_3.predict_proba(D_LSI_test)
-	y_pred_0_3 = [int(i[1]>0.5) for i in prob_0_3]
-	prob_1_2 = clf_1_2.predict_proba(D_LSI_test)
-	y_pred_1_2 = [int(i[1]>0.5) for i in prob_1_2]
-	prob_1_3 = clf_1_3.predict_proba(D_LSI_test)
-	y_pred_1_3 = [int(i[1]>0.5) for i in prob_1_3]
-	prob_2_3 = clf_2_3.predict_proba(D_LSI_test)
-	y_pred_2_3 = [int(i[1]>0.5) for i in prob_2_3]
-	"""
-
-
-	#####################
-	#Left: problem J
-	#####################
 
 if __name__ == '__main__':
 	main(sys.argv)
