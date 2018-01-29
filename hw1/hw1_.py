@@ -168,6 +168,7 @@ def part_i(dclass,D,Dtest):
 	print ('avg weight:',avg_w1,'\n',avg_w2)
 
 def plot_ROC(pred_proba,target):
+
 	fpr, tpr, thresholds = roc_curve(target, pred_proba[:,1])
 	plt.plot(fpr,tpr)
 	plt.title('roc_curve')
@@ -223,11 +224,24 @@ def main(argv):
 	d_transformer = {'2':tfidf_transformer2,'5':tfidf_transformer5}
 	
 	print ('-----Part C-----')
-	vectorizerc = CountVectorizer(min_df=int(choose_mindf),stop_words=stop_words,max_df=0.8)
-	tfidf_transformerc = TfidfTransformer()
 
-	tfidf_c = preprocess(dclass,dclass.training_data2,vectorizerc,tfidf_transformerc,train=True,ICF=True)			#default min_df=5, use TF-ICF
-	find_10most(dclass,tfidf_c)
+	#vectorizerc = CountVectorizer(min_df=int(choose_mindf),stop_words=stop_words,max_df=0.8)
+	#tfidf_transformerc = TfidfTransformer()
+
+
+	vectorizerc_2 = CountVectorizer(min_df=2,stop_words=stop_words,max_df=0.8)
+	tfidf_transformerc_2 = TfidfTransformer()
+
+	tfidf_c_2 = preprocess(dclass,dclass.training_data2,vectorizerc_2,tfidf_transformerc_2,train=True,ICF=True)			#default min_df=5, use TF-ICF
+	find_10most(dclass,tfidf_c_2)
+
+	vectorizerc_5 = CountVectorizer(min_df=5,stop_words=stop_words,max_df=0.8)
+	tfidf_transformerc_5 = TfidfTransformer()
+
+	tfidf_c_5 = preprocess(dclass,dclass.training_data2,vectorizerc_5,tfidf_transformerc_5,train=True,ICF=True)			#default min_df=5, use TF-ICF
+	find_10most(dclass,tfidf_c_5)
+
+
 	
 	print ('-----Part D-----')																						#SVD and NMF base on TF-IDF5 result
 	svd = TruncatedSVD(n_components=50, n_iter=7, random_state=42)
@@ -262,6 +276,11 @@ def main(argv):
 	print ('-----Part I-----')
 	part_i(dclass,D_LSI,D_LSI_test)
 	part_i(dclass,D_NMF,D_NMF_test)
+
+	print ('-----Part J-----')
+	
+
+
 
 	#####################
 	#Left: problem J
