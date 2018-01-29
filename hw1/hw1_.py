@@ -18,12 +18,12 @@ from sklearn.linear_model import LogisticRegression
 import sys
 
 class Data:															#all the data from Internet database with diff category sets
-	def __init__(self,cat1,cat2):
+	def __init__(self,cat1,cat2,path):
 		self.categories1 = cat1
 		self.categories2 = cat2
-		self.data1 = fetch_20newsgroups(data_home = '/Volumes/Transcend/219/hw1/data',subset='train', categories=cat1, shuffle=True, random_state=42)
-		self.data2 = fetch_20newsgroups(data_home = '/Volumes/Transcend/219/hw1/data',subset='train', categories=cat2, shuffle=True, random_state=42)
-		self.data3 = fetch_20newsgroups(data_home = '/Volumes/Transcend/219/hw1/data',subset='test', categories=cat1, shuffle=False, random_state=42)
+		self.data1 = fetch_20newsgroups(data_home = path,subset='train', categories=cat1, shuffle=True, random_state=42)
+		self.data2 = fetch_20newsgroups(data_home = path,subset='train', categories=cat2, shuffle=True, random_state=42)
+		self.data3 = fetch_20newsgroups(data_home = path,subset='test', categories=cat1, shuffle=False, random_state=42)
 		self.training_data1 = self.data1.data 										# get the data
 		self.training_target1 = np.array([int(i>3) for i in self.data1.target])		# get the target--> binary class, so change 8 sub class to 2 class
 		#for i in range(len(self.training_target1)):
@@ -36,7 +36,7 @@ class Data:															#all the data from Internet database with diff categor
 def plot_histogram(dclass): 															#part A
 	dictt = {}
 	for i in dclass.categories1:
-		training_data = fetch_20newsgroups(data_home = '/Volumes/Transcend/219/hw1/data',subset='train', categories=[i])
+		training_data = fetch_20newsgroups(data_home = path,subset='train', categories=[i])
 		dictt[i] = len(training_data.data)
 
 	fig,ax = plt.subplots()
@@ -126,7 +126,7 @@ def part_g(dclass,D,Dtest):
 	ROC_CON_ACC_REC_PRE(pred,dclass.testing_target1)
 
 def part_h(dclass,D,Dtest):
-	clf = LogisticRegression()
+	clf = LogisticRegression(C=1000)
 	clf.fit(D,dclass.training_target1)
 	pred = clf.predict_proba(Dtest)
 	
@@ -135,6 +135,8 @@ def part_h(dclass,D,Dtest):
 def part_i(dclass,D,Dtest):
 	error1 = []
 	error2 = []
+	avg_w1 = []
+	avg_w2 = []
 	c_list = [0.001, 0.01, 0.1, 1, 10, 100, 1000]
 	for c in c_list:
 		clf1 = LogisticRegression(penalty='l1',C=c)
@@ -145,6 +147,9 @@ def part_i(dclass,D,Dtest):
 		pred2 = clf2.predict_proba(Dtest)
 		error1.append( sum([int(int(i>0.5)!=j) for i,j in zip(pred1[:,1],dclass.testing_target1)])/len(dclass.testing_target1) )
 		error2.append( sum([int(int(i>0.5)!=j) for i,j in zip(pred2[:,1],dclass.testing_target1)])/len(dclass.testing_target1) )
+		avg_w1.append(sum(np.abs(clf1.coef_[0]))/len(clf1.coef_[0]))
+		avg_w2.append(sum(np.abs(clf2.coef_[0]))/len(clf2.coef_[0]))
+	
 	print ('error1',error1,'\nerror2',error2)
 	max_1 = c_list[np.argmin(np.array(error1))]
 	max_2 = c_list[np.argmin(np.array(error2))]
@@ -160,10 +165,10 @@ def part_i(dclass,D,Dtest):
 
 	ROC_CON_ACC_REC_PRE(pred1,dclass.testing_target1)
 	ROC_CON_ACC_REC_PRE(pred2,dclass.testing_target1)
-	
+	print ('avg weight:',avg_w1,'\n',avg_w2)
 
 def plot_ROC(pred_proba,target):
-	
+
 	fpr, tpr, thresholds = roc_curve(target, pred_proba[:,1])
 	plt.plot(fpr,tpr)
 	plt.title('roc_curve')
@@ -188,11 +193,16 @@ def ROC_CON_ACC_REC_PRE(pred_proba,y_true):
 	print (confusion_matrix(y_true, y_pred))
 	acc_rec_pre(y_true,y_pred)
 
-def main(choose_mindf):
+def main(argv):
+	choose_mindf = argv[1]
+	try:
+		path = argv[2]
+	except:
+		path = None
 	categories1 = ['comp.graphics', 'comp.os.ms-windows.misc','comp.sys.ibm.pc.hardware','comp.sys.mac.hardware','rec.autos','rec.motorcycles','rec.sport.baseball','rec.sport.hockey']
 	categories2 = ['comp.sys.ibm.pc.hardware', 'comp.sys.mac.hardware', 'misc.forsale', 'soc.religion.christian']
 	cat_all = ['comp.sys.ibm.pc.hardware', 'comp.sys.mac.hardware', 'misc.forsale', 'soc.religion.christian', 'alt.atheism', 'comp.graphics', 'comp.os.ms-windows.misc', 'comp.windows.x', 'rec.autos', 'rec.motorcycles', 'rec.sport.baseball', 'rec.sport.hockey', 'sci.crypt', 'sci.electronics', 'sci.med', 'sci.space', 'talk.politics.guns', 'talk.politics.mideast', 'talk.politics.misc', 'talk.religion.misc']
-	dclass = Data(categories1,cat_all)
+	dclass = Data(categories1,cat_all,path)
 	stop_words = text.ENGLISH_STOP_WORDS
 
 	print ('-----Part A-----')
@@ -214,6 +224,10 @@ def main(choose_mindf):
 	d_transformer = {'2':tfidf_transformer2,'5':tfidf_transformer5}
 	
 	print ('-----Part C-----')
+
+	#vectorizerc = CountVectorizer(min_df=int(choose_mindf),stop_words=stop_words,max_df=0.8)
+	#tfidf_transformerc = TfidfTransformer()
+
 
 	vectorizerc_2 = CountVectorizer(min_df=2,stop_words=stop_words,max_df=0.8)
 	tfidf_transformerc_2 = TfidfTransformer()
@@ -240,7 +254,7 @@ def main(choose_mindf):
 	tfidftest = preprocess(dclass,dclass.testing_data1,d_vectorizer[choose_mindf],d_transformer[choose_mindf],train=False)					#testing data
 	D_LSI_test = svd.transform(tfidftest)
 	D_NMF_test = model.transform(tfidftest)
-	
+	'''
 	print ('for D_LSI:')
 	part_e(dclass,D_LSI,D_LSI_test)
 	print ('for D_NMF:')
@@ -258,7 +272,7 @@ def main(choose_mindf):
 	print ('-----Part H-----')
 	part_h(dclass,D_LSI,D_LSI_test)
 	part_h(dclass,D_NMF,D_NMF_test)
-	
+	'''
 	print ('-----Part I-----')
 	part_i(dclass,D_LSI,D_LSI_test)
 	part_i(dclass,D_NMF,D_NMF_test)
@@ -273,4 +287,4 @@ def main(choose_mindf):
 	#####################
 
 if __name__ == '__main__':
-	main(sys.argv[1])
+	main(sys.argv)
