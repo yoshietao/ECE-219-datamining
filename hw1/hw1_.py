@@ -10,20 +10,29 @@ from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.decomposition import TruncatedSVD
 from sklearn.decomposition import NMF
 from sklearn.svm import SVC
+from sklearn.svm import LinearSVC
 from sklearn.metrics import roc_curve
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import cross_val_score
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.linear_model import LogisticRegression
+from sklearn.multiclass import OneVsOneClassifier, OneVsRestClassifier
+
+
 import sys
 
 class Data:															#all the data from Internet database with diff category sets
-	def __init__(self,cat1,cat2,path):
+	def __init__(self,cat1,cat2,catj,path):
 		self.categories1 = cat1
 		self.categories2 = cat2
 		self.data1 = fetch_20newsgroups(data_home = path,subset='train', categories=cat1, shuffle=True, random_state=42)
 		self.data2 = fetch_20newsgroups(data_home = path,subset='train', categories=cat2, shuffle=True, random_state=42)
 		self.data3 = fetch_20newsgroups(data_home = path,subset='test', categories=cat1, shuffle=False, random_state=42)
+		
+		self.dataj = fetch_20newsgroups(data_home = path,subset='train', categories=catj, shuffle=True, random_state=42)
+		self.dataj_test = fetch_20newsgroups(data_home = path,subset='test', categories=catj, shuffle=False, random_state=42)
+
+
 		self.training_data1 = self.data1.data 										# get the data
 		self.training_target1 = np.array([int(i>3) for i in self.data1.target])		# get the target--> binary class, so change 8 sub class to 2 class
 		#for i in range(len(self.training_target1)):
@@ -32,6 +41,11 @@ class Data:															#all the data from Internet database with diff categor
 		self.training_target2 = self.data2.target 									# get the target
 		self.testing_data1 = self.data3.data 										# get the data
 		self.testing_target1 = np.array([int(i>3) for i in self.data3.target]) 		# get the target--> binary class, so change 8 sub class to 2 class
+		
+		self.training_dataj = self.dataj.data
+		self.training_targetj = self.dataj.target
+		self.testing_dataj = self.dataj_test.data
+		self.testing_targetj = self.dataj_test.target
 
 def plot_histogram(dclass): 															#part A
 	dictt = {}
@@ -118,12 +132,16 @@ def part_f(dclass,D,Dtest):
 	pred = clf.predict_proba(Dtest)
 	ROC_CON_ACC_REC_PRE(pred,dclass.testing_target1)
 
-def part_g(dclass,D,Dtest):
+def part_g(dclass,D,Dtest,D_target,j=False):
 	clf = MultinomialNB()
-	clf.fit(D, dclass.training_target1)
+	clf.fit(D, D_target)
 	pred = clf.predict_proba(Dtest)
 	
-	ROC_CON_ACC_REC_PRE(pred,dclass.testing_target1)
+	if not j:
+		ROC_CON_ACC_REC_PRE(pred,dclass.testing_target1)
+	else: 
+		con_acc_rec_pre_j(pred,dclass.testing_targetj)
+
 
 def part_h(dclass,D,Dtest):
 	clf = LogisticRegression(C=1000)
@@ -167,6 +185,17 @@ def part_i(dclass,D,Dtest):
 	ROC_CON_ACC_REC_PRE(pred2,dclass.testing_target1)
 	print ('avg weight:',avg_w1,'\n',avg_w2)
 
+def part_j_SVM(dclass, D, Dtest):
+	y_pred_onevsone = OneVsOneClassifier(LinearSVC(random_state=0)).fit(D, dclass.training_targetj).predict(Dtest)
+	y_true = np.array(dclass.testing_targetj)
+	print('--------One Vs One SVM---------')
+	con_acc_rec_pre_j(y_pred_onevsone, y_true, INT=True)
+
+	y_pred_onevsrest = OneVsRestClassifier(LinearSVC(random_state=0)).fit(D, dclass.training_targetj).predict(Dtest)
+	print('--------One Vs Rest SVM--------')
+	con_acc_rec_pre_j(y_pred_onevsrest, y_true, INT=True)
+
+
 def plot_ROC(pred_proba,target):
 
 	fpr, tpr, thresholds = roc_curve(target, pred_proba[:,1])
@@ -193,6 +222,35 @@ def ROC_CON_ACC_REC_PRE(pred_proba,y_true):
 	print (confusion_matrix(y_true, y_pred))
 	acc_rec_pre(y_true,y_pred)
 
+def con_acc_rec_pre_j(pred_proba,y_true, INT=False):
+	if INT :
+		y_pred = pred_proba
+	else:
+		y_pred = np.argmax(pred_proba, axis=1)
+
+	y_true = np.array(y_true)
+	confusion_matrix_j = confusion_matrix(y_true, y_pred)
+	print ('confusion_matrix: \n', confusion_matrix_j)
+	sum_row = np.sum(confusion_matrix_j, axis=0)
+	sum_col = np.sum(confusion_matrix_j, axis=1)
+	total = np.sum(sum_row)
+	
+	accuracy = 0
+	precision = np.zeros(4)
+	recall = np.zeros(4)
+
+	for i in range(4):
+		accuracy += confusion_matrix_j[i][i]
+		precision[i] = confusion_matrix_j[i][i]/sum_row[i]
+		recall[i] = confusion_matrix_j[i][i]/sum_col[i]
+
+	accuracy /= total
+
+	print ('accuracy of j: ', accuracy, '\n')
+	print ('precision of each calss in j: ', precision, '\n')
+	print ('recall of each class in j: ', recall, '\n')
+	
+
 def main(argv):
 	choose_mindf = argv[1]
 	try:
@@ -202,7 +260,7 @@ def main(argv):
 	categories1 = ['comp.graphics', 'comp.os.ms-windows.misc','comp.sys.ibm.pc.hardware','comp.sys.mac.hardware','rec.autos','rec.motorcycles','rec.sport.baseball','rec.sport.hockey']
 	categories2 = ['comp.sys.ibm.pc.hardware', 'comp.sys.mac.hardware', 'misc.forsale', 'soc.religion.christian']
 	cat_all = ['comp.sys.ibm.pc.hardware', 'comp.sys.mac.hardware', 'misc.forsale', 'soc.religion.christian', 'alt.atheism', 'comp.graphics', 'comp.os.ms-windows.misc', 'comp.windows.x', 'rec.autos', 'rec.motorcycles', 'rec.sport.baseball', 'rec.sport.hockey', 'sci.crypt', 'sci.electronics', 'sci.med', 'sci.space', 'talk.politics.guns', 'talk.politics.mideast', 'talk.politics.misc', 'talk.religion.misc']
-	dclass = Data(categories1,cat_all,path)
+	dclass = Data(categories1,cat_all,categories2,path)
 	stop_words = text.ENGLISH_STOP_WORDS
 
 	print ('-----Part A-----')
@@ -225,10 +283,6 @@ def main(argv):
 	
 	print ('-----Part C-----')
 
-	#vectorizerc = CountVectorizer(min_df=int(choose_mindf),stop_words=stop_words,max_df=0.8)
-	#tfidf_transformerc = TfidfTransformer()
-
-
 	vectorizerc_2 = CountVectorizer(min_df=2,stop_words=stop_words,max_df=0.8)
 	tfidf_transformerc_2 = TfidfTransformer()
 
@@ -241,7 +295,6 @@ def main(argv):
 	tfidf_c_5 = preprocess(dclass,dclass.training_data2,vectorizerc_5,tfidf_transformerc_5,train=True,ICF=True)			#default min_df=5, use TF-ICF
 	find_10most(dclass,tfidf_c_5)
 
-
 	
 	print ('-----Part D-----')																						#SVD and NMF base on TF-IDF5 result
 	svd = TruncatedSVD(n_components=50, n_iter=7, random_state=42)
@@ -250,15 +303,16 @@ def main(argv):
 	D_NMF = model.fit_transform(d_tfidf[choose_mindf])
 	print ('LSI.shape:',D_LSI.shape,'\nNMF.shape:',D_NMF.shape)
 
+
 	print ('-----Part E-----')																						#SVM
-	tfidftest = preprocess(dclass,dclass.testing_data1,d_vectorizer[choose_mindf],d_transformer[choose_mindf],train=False)					#testing data
+	tfidftest = preprocess(dclass,dclass.testing_data1,d_vectorizer[choose_mindf],d_transformer[choose_mindf],train=False)			#testing data
 	D_LSI_test = svd.transform(tfidftest)
 	D_NMF_test = model.transform(tfidftest)
-	
 	print ('for D_LSI:')
 	part_e(dclass,D_LSI,D_LSI_test)
 	print ('for D_NMF:')
 	part_e(dclass,D_NMF,D_NMF_test)
+
 
 	print ('-----Part F-----')
 	print ('for D_LSI:')
@@ -267,7 +321,7 @@ def main(argv):
 	part_f(dclass,D_NMF,D_NMF_test)
 	
 	print ('-----Part G-----')
-	part_g(dclass,D_NMF,D_NMF_test)
+	part_g(dclass,D_NMF,D_NMF_test, dclass.training_target1)
 	
 	print ('-----Part H-----')
 	part_h(dclass,D_LSI,D_LSI_test)
@@ -276,15 +330,27 @@ def main(argv):
 	print ('-----Part I-----')
 	part_i(dclass,D_LSI,D_LSI_test)
 	part_i(dclass,D_NMF,D_NMF_test)
+	
 
 	print ('-----Part J-----')
 	
+	tfidf2_j = preprocess(dclass,dclass.training_dataj,vectorizer2,tfidf_transformer2,train=True)
+	D_LSI_j = svd.fit_transform(tfidf2_j)
+	D_NMF_j = model.fit_transform(tfidf2_j)
 
+	tfidftest_j = preprocess(dclass,dclass.testing_dataj,vectorizer2,tfidf_transformer2,train=False)					#testing data
+	D_LSI_test_j = svd.transform(tfidftest_j)
+	D_NMF_test_j = model.transform(tfidftest_j)
 
+	print ('----------------Naive Bayes in J-----------------')
+	part_g(dclass,D_NMF_j,D_NMF_test_j, dclass.training_targetj, True)
 
-	#####################
-	#Left: problem J
-	#####################
+	print ('----------------SVM in J with LSI data-----------')
+	part_j_SVM(dclass, D_LSI_j, D_LSI_test_j)
+
+	print ('----------------SVM in J with NMF data-----------')
+	part_j_SVM(dclass, D_NMF_j, D_NMF_test_j)
+
 
 if __name__ == '__main__':
 	main(sys.argv)
