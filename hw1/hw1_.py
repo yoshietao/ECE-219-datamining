@@ -102,7 +102,7 @@ def find_10most(dclass,doc):													#find most significant terms
 
 def part_e(dclass,D,Dtest):															#SVD using C=1000 and 0.001
 	clf_1000 = SVC(C=1000, probability=True, kernel='linear')
-	clf_01   = SVC(C=0.001, probability=True, kernel='linear')
+	clf_01   = SVC(C=0.0001, probability=True, kernel='linear')
 	
 	target   = [i*2-1 for i in dclass.training_target1]
 	clf_1000.fit(D, target) 

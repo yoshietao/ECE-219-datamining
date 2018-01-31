@@ -6,7 +6,7 @@ how to run the code:
 
 in the terminal with python3 environment, run:
 
-$ bash hw1.sh 
+bash hw1.sh 
 
 to run the code.
 
