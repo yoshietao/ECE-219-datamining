@@ -1,4 +1,6 @@
 from sklearn.datasets import fetch_20newsgroups
+from sklearn.feature_extraction import text
+from nltk.corpus import stopwords
 import numpy as np
 import string
 import re
@@ -9,6 +11,9 @@ from sklearn import metrics
 from sklearn.decomposition import TruncatedSVD
 import matplotlib.pyplot as plt
 from sklearn.decomposition import NMF
+from sklearn.preprocessing import StandardScaler
+import math
+from sklearn.cluster import KMeans
 
 
 class Data:
@@ -25,7 +30,7 @@ def PART(cat):
 		cats = 2
 	
 	print ('_____1_____')
-	data_tfidf = proprocess(d.data)
+	data_tfidf = preprocess(d.data)
 	print (data_tfidf.shape)
 	print ('_____2a_____')
 	pred_ = MiniBatchKMeans(n_clusters=cats, init='k-means++', n_init=30, random_state=42).fit_predict(data_tfidf)
@@ -33,8 +38,8 @@ def PART(cat):
 	print (print_5_measure(d.target,pred_))
 	print ('_____3a_i_____')
 	'''
-	data_svd = TruncatedSVD(n_components=1000, algorithm='arpack', random_state=42)fit_transform(data_tfidf)
-	#data_svd = svd.fit_transform(data_tfidf)
+	svd = TruncatedSVD(n_components=1000, algorithm='arpack', random_state=42)
+	data_svd = svd.fit_transform(data_tfidf)
 	XXT = data_tfidf*np.transpose(data_tfidf)
 	original_variance = 0
 	for i in range(XXT.shape[0]):
@@ -48,20 +53,29 @@ def PART(cat):
 	plt.title('Variance Ratio')
 	plt.xlabel('r')		#rank
 	plt.show()
+	'''
 	print ('_____3a_ii_____')
+	measures_list = ['homogeneity','completeness','v-measure','rand score','mutual information']
 	print ('_____SVD_____')
-	r_list = [1,2,3,5,10,20,50,100,300]
+	svd = TruncatedSVD(n_components=300, algorithm='arpack', random_state=42)
+	data_svd = svd.fit_transform(data_tfidf)
+	r_list = [1,2,3,5,10,20]#,50,100,300]
+	#r_list = np.arange(2,50)
 	measures = []
 	for r in r_list:
 		svd_r = data_svd[:,:r]
-		pred_ = MiniBatchKMeans(n_clusters=cats, init='k-means++', n_init=30, random_state=42).fit_predict(svd_r)
+		pred_ = KMeans(n_clusters=cats, random_state=0).fit_predict(svd_r)
 		x,y = (print_5_measure(d.target,pred_))
 		measures.append(x)
 		print (x,y)
 	measures = np.array(measures)
+	best_r_svd = r_list[np.argmax(measures[:,0])]
+	print (best_r_svd)
 	for i in range(5):
-		plt.plot(r_list,measures[:,i])
-		plt.show()
+		plt.plot(r_list,measures[:,i],label=measures_list[i])
+	plt.legend(loc=1)
+	plt.show()
+	
 	print ('______NMF_____')
 	measures = []
 	for r in r_list:
@@ -71,44 +85,89 @@ def PART(cat):
 		measures.append(x)
 		print (x,y)
 	measures = np.array(measures)
+	best_r_nmf = r_list[np.argmax(measures[:,0])]
 	for i in range(5):
-		plt.plot(r_list,measures[:,i])
-		plt.show()
-	'''
-	print ('_____4a_____')
-	#svd_r = data_svd[:,:2]
-	svd_r = TruncatedSVD(n_components=2, algorithm='arpack', random_state=42).fit_transform(data_tfidf)
-	pred_ = MiniBatchKMeans(n_clusters=cats, init='k-means++', n_init=30, random_state=42).fit_predict(svd_r)
-	#class0 = np.array([j.tolist() for i,j in zip(pred_,svd_r) if i==0])
-	#class1 = np.array([j.tolist() for i,j in zip(pred_,svd_r) if i==1])
-	class0 = np.array([j.tolist() for i,j in zip(d.target,svd_r) if i==0])
-	class1 = np.array([j.tolist() for i,j in zip(d.target,svd_r) if i==1])
-	class0 = [class0[:,0],class0[:,1]]
-	class1 = [class1[:,0],class1[:,1]]
-	print (class0)
+		plt.plot(r_list,measures[:,i],label=measures_list[i])
+	plt.legend(loc=1)
+	plt.show()
 	
-	data = (class0,class1)
-	colors = ("red", "green")
-	groups = ('comp','rec')
+	print ('_____4a_____')
+	svd = TruncatedSVD(n_components=best_r_svd, algorithm='arpack', random_state=42).fit_transform(data_tfidf)
+	nmf = NMF(n_components=best_r_nmf, init='random', random_state = 42).fit_transform(data_tfidf)
+
+	visualize(svd,d.target,cats,nmf=False)
+	visualize(nmf,d.target,cats,nmf=True)
+	print ('_____4a_ii_____')
+	print_label('1')
+	data_svd = TruncatedSVD(n_components=best_r_svd, algorithm='arpack', random_state=42).fit_transform(data_tfidf)
+	data_norm = StandardScaler(with_mean=False).fit_transform(data_svd)
+	pred_svd = MiniBatchKMeans(n_clusters=cats, init='k-means++', n_init=30, random_state=42).fit_predict(data_norm)
+	visualize(data_norm,d.target,cats,nmf=False)
+	print(print_5_measure(d.target,pred_svd))
+
+	data_nmf = NMF(n_components=best_r_nmf, init='random', random_state = 42).fit_transform(data_tfidf)
+	data_norm = StandardScaler(with_mean=False).fit_transform(data_nmf)
+	pred_nmf = MiniBatchKMeans(n_clusters=cats, init='k-means++', n_init=30, random_state=42).fit_predict(data_norm)
+	visualize(data_norm,d.target,cats,nmf=True)
+	print(print_5_measure(d.target,pred_nmf))
+	
+	print_label('2')
+	data_nmf = NMF(n_components=best_r_nmf, init='random', random_state = 42).fit_transform(data_tfidf)
+	data_log = np.log(data_nmf+0.001)
+	pred_nmf = MiniBatchKMeans(n_clusters=cats, init='k-means++', n_init=30, random_state=42).fit_predict(data_log)
+	visualize(data_log,d.target,cats,nmf=True)
+	print(print_5_measure(d.target,pred_nmf))
+
+	print_label('log->nprm')
+	data_log_norm = StandardScaler(with_mean=False).fit_transform(data_log)
+	pred_nmf = MiniBatchKMeans(n_clusters=cats, init='k-means++', n_init=30, random_state=42).fit_predict(data_log_norm)
+	visualize(data_log_norm,d.target,cats,nmf=True)
+	print(print_5_measure(d.target,pred_nmf))
+
+	print_label('norm->log')
+	data_norm_log = np.log(data_norm+0.001)
+	pred_nmf = MiniBatchKMeans(n_clusters=cats, init='k-means++', n_init=30, random_state=42).fit_predict(data_norm_log)
+	visualize(data_norm_log,d.target,cats,nmf=True)
+	print(print_5_measure(d.target,pred_nmf))
+
+
+def print_label(i):
+	print ('---------------')
+	print ('       '+i)
+	print ('---------------')
+def visualize(vector,target,C,nmf):
+	if nmf:
+		vector = TruncatedSVD(n_components=2,algorithm='arpack',random_state=42).fit_transform(vector)
+	class_ = []
+	for c in range(C):
+		tmp = np.array([j.tolist() for i,j in zip(target,vector) if i==c])
+		class_.append([tmp[:,i] for i in range(2)])
+	data = class_
+	colors = [np.random.rand(3,) for i in range(C)]
 
 	fig = plt.figure()
 	ax = fig.add_subplot(1, 1, 1, axisbg="1.0")
  
-	for data, color, group in zip(data, colors, groups):
+	for data, color in zip(data, colors):
 		x, y = data
-		ax.scatter(x, y, alpha=0.8, c=color, edgecolors='none', s=30, label=group)
+		ax.scatter(x, y, alpha=0.8, c=color, edgecolors='none', s=30)
 	
-	plt.title('SVD_2D')
-	plt.legend(loc=2)
+	if nmf:
+		plt.title('NMF_2D')
+	else:
+		plt.title('SVD_2D')
 	plt.show()
 
+def preprocess(data):
+	stop_words_skt = text.ENGLISH_STOP_WORDS
+	stop_words_en = stopwords.words('english')
+	combined_stopwords = set.union(set(stop_words_en),set(string.punctuation),set(stop_words_skt))
+	data_tfidf = TfidfVectorizer(min_df=3,stop_words=combined_stopwords).fit_transform(data)
 
-def proprocess(data):
-	regex = re.compile('[%s]' % re.escape(string.punctuation))
-	data_re = [regex.sub('', text) for text in data]
+	#regex = re.compile('[%s]' % re.escape(string.punctuation))
+	#data_re = [regex.sub('', text) for text in data]
 
-	tfidf = TfidfVectorizer(min_df=3,stop_words='english')
-	data_tfidf = tfidf.fit_transform(data_re)
+	#data_tfidf = TfidfVectorizer(min_df=3,stop_words=stop_words_skt).fit_transform(data_re)
 	return data_tfidf
 
 def print_5_measure(y_true,y_pred):
