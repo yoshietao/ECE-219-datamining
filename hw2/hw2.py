@@ -59,7 +59,7 @@ def PART(cat):
 	print ('_____SVD_____')
 	svd = TruncatedSVD(n_components=300, algorithm='arpack', random_state=42)
 	data_svd = svd.fit_transform(data_tfidf)
-	r_list = [1,2,3,5,10,20]#,50,100,300]
+	r_list = [1,2,3,5,10,20,50,100,300]
 	#r_list = np.arange(2,50)
 	measures = []
 	for r in r_list:
