@@ -14,7 +14,7 @@ from sklearn.decomposition import NMF
 from sklearn.preprocessing import StandardScaler
 import math
 from sklearn.cluster import KMeans
-
+import itertools
 
 class Data:
 	def __init__(self,cat):
@@ -35,9 +35,11 @@ def PART(cat):
 	print ('_____2a_____')
 	pred_ = MiniBatchKMeans(n_clusters=cats, init='k-means++', n_init=30, random_state=42).fit_predict(data_tfidf)
 	print ('_____2b_____')
-	print (print_5_measure(d.target,pred_))
+	m5,cm = print_5_measure(d.target,pred_)
+	print (m5)
+	plot_confusion_matrix(cm)
 	print ('_____3a_i_____')
-	'''
+	
 	svd = TruncatedSVD(n_components=1000, algorithm='arpack', random_state=42)
 	data_svd = svd.fit_transform(data_tfidf)
 	XXT = data_tfidf*np.transpose(data_tfidf)
@@ -53,7 +55,7 @@ def PART(cat):
 	plt.title('Variance Ratio')
 	plt.xlabel('r')		#rank
 	plt.show()
-	'''
+	
 	print ('_____3a_ii_____')
 	measures_list = ['homogeneity','completeness','v-measure','rand score','mutual information']
 	print ('_____SVD_____')
@@ -67,7 +69,8 @@ def PART(cat):
 		pred_ = KMeans(n_clusters=cats, random_state=0).fit_predict(svd_r)
 		x,y = (print_5_measure(d.target,pred_))
 		measures.append(x)
-		print (x,y)
+		print (x)
+		plot_confusion_matrix(y)
 	measures = np.array(measures)
 	best_r_svd = r_list[np.argmax(measures[:,0])]
 	print (best_r_svd)
@@ -83,7 +86,8 @@ def PART(cat):
 		pred_ = MiniBatchKMeans(n_clusters=cats, init='k-means++', n_init=30, random_state=42).fit_predict(nmf_r)
 		x,y = (print_5_measure(d.target,pred_))
 		measures.append(x)
-		print (x,y)
+		print (x)
+		plot_confusion_matrix(y)
 	measures = np.array(measures)
 	best_r_nmf = r_list[np.argmax(measures[:,0])]
 	for i in range(5):
@@ -103,33 +107,61 @@ def PART(cat):
 	data_norm = StandardScaler(with_mean=False).fit_transform(data_svd)
 	pred_svd = MiniBatchKMeans(n_clusters=cats, init='k-means++', n_init=30, random_state=42).fit_predict(data_norm)
 	visualize(data_norm,d.target,cats,nmf=False)
-	print(print_5_measure(d.target,pred_svd))
+	m5,cm = print_5_measure(d.target,pred_svd)
+	print(m5)
+	plot_confusion_matrix(cm)
 
 	data_nmf = NMF(n_components=best_r_nmf, init='random', random_state = 42).fit_transform(data_tfidf)
 	data_norm = StandardScaler(with_mean=False).fit_transform(data_nmf)
 	pred_nmf = MiniBatchKMeans(n_clusters=cats, init='k-means++', n_init=30, random_state=42).fit_predict(data_norm)
 	visualize(data_norm,d.target,cats,nmf=True)
-	print(print_5_measure(d.target,pred_nmf))
-	
+	m5,cm = print_5_measure(d.target,pred_nmf)
+	print(m5)
+	plot_confusion_matrix(cm)
+
 	print_label('2')
 	data_nmf = NMF(n_components=best_r_nmf, init='random', random_state = 42).fit_transform(data_tfidf)
 	data_log = np.log(data_nmf+0.001)
 	pred_nmf = MiniBatchKMeans(n_clusters=cats, init='k-means++', n_init=30, random_state=42).fit_predict(data_log)
 	visualize(data_log,d.target,cats,nmf=True)
-	print(print_5_measure(d.target,pred_nmf))
+	m5,cm = print_5_measure(d.target,pred_nmf)
+	print(m5)
+	plot_confusion_matrix(cm)
 
 	print_label('log->nprm')
 	data_log_norm = StandardScaler(with_mean=False).fit_transform(data_log)
 	pred_nmf = MiniBatchKMeans(n_clusters=cats, init='k-means++', n_init=30, random_state=42).fit_predict(data_log_norm)
 	visualize(data_log_norm,d.target,cats,nmf=True)
-	print(print_5_measure(d.target,pred_nmf))
+	m5,cm = print_5_measure(d.target,pred_nmf)
+	print(m5)
+	plot_confusion_matrix(cm)
 
 	print_label('norm->log')
 	data_norm_log = np.log(data_norm+0.001)
 	pred_nmf = MiniBatchKMeans(n_clusters=cats, init='k-means++', n_init=30, random_state=42).fit_predict(data_norm_log)
 	visualize(data_norm_log,d.target,cats,nmf=True)
-	print(print_5_measure(d.target,pred_nmf))
+	m5,cm = print_5_measure(d.target,pred_nmf)
+	print(m5)
+	plot_confusion_matrix(cm)
 
+def plot_confusion_matrix(cm, title='Contingency matrix', cmap=plt.cm.Blues):
+	plt.figure()
+
+	plt.imshow(cm, interpolation='nearest', cmap=cmap)
+	plt.title(title)
+	plt.colorbar()
+
+	fmt = 'd'
+	thresh = cm.max() / 2.
+	for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+		plt.text(j, i, format(cm[i, j], fmt),
+				 horizontalalignment="center",
+				 color="white" if cm[i, j] > thresh else "black")
+
+	plt.tight_layout()
+	plt.ylabel('Classes')
+	plt.xlabel('Clusters')
+	plt.show()
 
 def print_label(i):
 	print ('---------------')
